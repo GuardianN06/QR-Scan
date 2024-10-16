@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+    <link rel="icon" type="image/x-icon" href="data:image/gif;base64,R0lGODlhZABkAJEAAAAAAP///wAAAAAAACH5BAEAAAIALAAAAABkAGQAAAL/jI+py+0Po5y02ouz3rz7D4biSJbmiabqCgLuC8fyjMD1C836bk/8Tzv0DMMG8IjzIY83VxOQWwIp0qkwScQaqzyq1uu8cp+YYjRsKXLRAbOSfYZe1Gvy/PtwS+hjsTyN58C3YwfINqhTGIEYlAX39temZeUYGfeU6Fc2ydmlCYnZKPm41xlJOWqZZ5pZqYjKKKN46dea+vqD6+kKWis6GCr7WWmrt3WYO3zrK8xL/Bt4fJrsnICqS6hM+9y8rHCtDBvNEBszy2y+UA7cy51eHfxuzQpNKr1pT16vWpqvPr7K37d9+PjduyNwXjdj2xYBFPRQoTyGAQ3qW0MwHD2M/wnjYcSGjWNEj3U0IjspciS6jyanoUxpcYUxWyxQzBRV88TNbjlN7JTX01uqdRuzwWtJceDLokQXRisHxuVEakOp/owXFetKphmVSk0qDSrCKhelFhRriOw/lGeLtkVS9ly/qTwhSYmrrSLNrXWPatgLcZdEcH4zAA6Lky/QvH8TBzY6mKpcw44PzsXrDrNErZfbbUanOaTKwqGRPj29tCNjy58zrzWIlrJTuBXjsPNQbEnDsrc75Kb92LapFvsIt0bMNujr3iCVp2Xe0vnz4a8nS0dutvpqDjBjH/4dcy5MzlXtgefePfVX1HTDO0xP/ntX2e41H45613NW0BtYdrNOS95bTOjn2X126VagVRE11d1+7kDnFUnwJSgYWAyORyFkFnI14X/ltSfhYqTxB6BioglmHYkVMHgiZCm6VuKD1MnYl1C8jXacOOrZxx5YDem4nnkzRqZacCaaJmRyXvlY25HVyKckkfU1GSN9AWrnoYNWqliakVUWdGWEBGY5VpjHCSdSiF0KxeRjGNIIG3svvtegk2dG1196QYpoI57X/QlooIIOSmihhh6KaKKKLhpoAQA7">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f2f2f2;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #qrCodeDisplay {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        #output {
+            font-size: 18px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+    </style>
+    <script src="jsQR.js"></script>
+</head>
+<body>
+    <div>
+        <div id="qrCodeDisplay" style="margin-bottom: 20px;"></div>
+        <button onclick="triggerFileInput()">Upload Image</button>
+        <input type="file" id="fileInput" accept="image/*">
+        <div id="output"></div>
+    </div>
+
+    <script>
+        document.addEventListener('paste', handlePaste);
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+
+        function handlePaste(event) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    displayQRCode(blob);
+                    processImage(blob);
+                    break;
+                }
+            }
+        }
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+
+            if (file) {
+                displayQRCode(file);
+                processImage(file);
+            }
+        }
+
+        function processImage(file) {
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const image = new Image();
+                image.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(image, 0, 0);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code) {
+                        const outputDiv = document.getElementById('output');
+                        if (isValidURL(code.data)) {
+                            outputDiv.innerHTML = `<span>Decoded: </span><a href="${code.data}" target="_blank">${code.data}</a>`;
+                        } else {
+                            outputDiv.innerText = 'QR Code Detected: ' + code.data;
+                        }
+                    } else {
+                        document.getElementById('output').innerText = 'No QR Code found.';
+                    }
+                };
+                image.src = e.target.result;
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function triggerFileInput() {
+            document.getElementById('fileInput').click();
+        }
+
+        function isValidURL(url) {
+            try {
+                new URL(url);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function displayQRCode(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const qrCodeDisplay = document.getElementById('qrCodeDisplay');
+                qrCodeDisplay.innerHTML = `<img src="${e.target.result}" alt="QR Code" style="max-width: 100%;">`;
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
